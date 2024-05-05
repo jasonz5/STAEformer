@@ -1,17 +1,5 @@
 import numpy as np
 
-
-def MSE(y_true, y_pred):
-    with np.errstate(divide="ignore", invalid="ignore"):
-        mask = np.not_equal(y_true, 0)
-        mask = mask.astype(np.float32)
-        mask /= np.mean(mask)
-        mse = np.square(y_pred - y_true)
-        mse = np.nan_to_num(mse * mask)
-        mse = np.mean(mse)
-        return mse
-
-
 def RMSE(y_true, y_pred):
     with np.errstate(divide="ignore", invalid="ignore"):
         mask = np.not_equal(y_true, 0)
@@ -47,7 +35,7 @@ def MAPE(y_true, y_pred, null_val=0):
         return np.mean(mape) * 100
 
 
-def RMSE_MAE_MAPE(y_true, y_pred):
+def RMSE_MAE_MAPE_PEMS(y_true, y_pred):
     return (
         RMSE(y_true, y_pred),
         MAE(y_true, y_pred),
@@ -55,10 +43,30 @@ def RMSE_MAE_MAPE(y_true, y_pred):
     )
 
 
-def MSE_RMSE_MAE_MAPE(y_true, y_pred):
+def mae_np(pred, true, mask_value=None):
+    if mask_value != None:
+        mask = np.where(true > (mask_value), True, False)
+        true = true[mask]
+        pred = pred[mask]
+    return np.mean(np.absolute(pred-true))
+
+def rmse_np(pred, true, mask_value=None):
+    if mask_value != None:
+        mask = np.where(true > (mask_value), True, False)
+        pred = pred[mask]
+        true = true[mask]
+    return np.sqrt(np.mean(np.square(true - pred)))
+
+def mape_np(pred, true, mask_value=None):
+    if mask_value != None:
+        mask = np.where(true > (mask_value), True, False)
+        true = true[mask]
+        pred = pred[mask]
+    return np.mean(np.absolute(np.divide((true - pred), true)))*100
+
+def RMSE_MAE_MAPE_NYC(y_true, y_pred, mask_value=5.0):
     return (
-        MSE(y_true, y_pred),
-        RMSE(y_true, y_pred),
-        MAE(y_true, y_pred),
-        MAPE(y_true, y_pred),
+        rmse_np(y_pred, y_true, mask_value=mask_value),
+        mae_np(y_pred, y_true, mask_value=mask_value),
+        mape_np(y_pred, y_true, mask_value=mask_value),
     )

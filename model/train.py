@@ -15,13 +15,14 @@ import copy
 
 sys.path.append("..")
 from lib.utils import (
-    MaskedMAELoss,
+    MaskedMAELossPEMS,
+    MaskedMAELossNYC,
     print_log,
     seed_everything,
     set_cpu_num,
     CustomJSONEncoder,
 )
-from lib.metrics import RMSE_MAE_MAPE
+from lib.metrics import RMSE_MAE_MAPE_PEMS, RMSE_MAE_MAPE_NYC
 from lib.data_prepare import get_dataloaders_from_index_data
 from model.STAEformer import STAEformer
 
@@ -62,8 +63,8 @@ def predict(model, loader):
         out.append(out_batch)
         y.append(y_batch)
 
-    out = np.vstack(out).squeeze()  # (samples, out_steps, num_nodes)
-    y = np.vstack(y).squeeze()
+    out = np.vstack(out)  # (samples, out_steps, num_nodes, channels)
+    y = np.vstack(y)
 
     return y, out
 
@@ -97,6 +98,7 @@ def train_one_epoch(
 
 
 def train(
+    dataset,
     model,
     trainset_loader,
     valset_loader,
@@ -149,8 +151,13 @@ def train(
                 break
 
     model.load_state_dict(best_state_dict)
-    train_rmse, train_mae, train_mape = RMSE_MAE_MAPE(*predict(model, trainset_loader))
-    val_rmse, val_mae, val_mape = RMSE_MAE_MAPE(*predict(model, valset_loader))
+    if dataset in ("METRLA", "PEMSBAY"):
+        train_rmse, train_mae, train_mape = RMSE_MAE_MAPE_PEMS(*predict(model, trainset_loader))
+        val_rmse, val_mae, val_mape = RMSE_MAE_MAPE_PEMS(*predict(model, valset_loader))
+    elif dataset in ("NYCBike1", "NYCBike2", "NYCTaxi"):
+        train_rmse, train_mae, train_mape = RMSE_MAE_MAPE_NYC(*predict(model, trainset_loader))
+        val_rmse, val_mae, val_mape = RMSE_MAE_MAPE_NYC(*predict(model, valset_loader))
+    
 
     out_str = f"Early stopping at epoch: {epoch+1}\n"
     out_str += f"Best at epoch {best_epoch+1}:\n"
@@ -183,7 +190,7 @@ def train(
 
 
 @torch.no_grad()
-def test_model(model, testset_loader, log=None):
+def test_model(dataset, model, testset_loader, log=None):
     model.eval()
     print_log("--------- Test ---------", log=log)
 
@@ -191,7 +198,10 @@ def test_model(model, testset_loader, log=None):
     y_true, y_pred = predict(model, testset_loader)
     end = time.time()
 
-    rmse_all, mae_all, mape_all = RMSE_MAE_MAPE(y_true, y_pred)
+    if dataset in ("METRLA", "PEMSBAY"):
+        rmse_all, mae_all, mape_all = RMSE_MAE_MAPE_PEMS(y_true, y_pred)
+    elif dataset in ("NYCBike1", "NYCBike2", "NYCTaxi"):
+        rmse_all, mae_all, mape_all = RMSE_MAE_MAPE_NYC(y_true, y_pred)
     out_str = "All Steps RMSE = %.5f, MAE = %.5f, MAPE = %.5f\n" % (
         rmse_all,
         mae_all,
@@ -199,7 +209,10 @@ def test_model(model, testset_loader, log=None):
     )
     out_steps = y_pred.shape[1]
     for i in range(out_steps):
-        rmse, mae, mape = RMSE_MAE_MAPE(y_true[:, i, :], y_pred[:, i, :])
+        if dataset in ("METRLA", "PEMSBAY"):
+            rmse, mae, mape = RMSE_MAE_MAPE_PEMS(y_true[:, i, :, :], y_pred[:, i, :, :])
+        elif dataset in ("NYCBike1", "NYCBike2", "NYCTaxi"):
+            rmse, mae, mape = RMSE_MAE_MAPE_NYC(y_true[:, i, :, :], y_pred[:, i, :, :])
         out_str += "Step %d RMSE = %.5f, MAE = %.5f, MAPE = %.5f\n" % (
             i + 1,
             rmse,
@@ -228,7 +241,7 @@ if __name__ == "__main__":
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     dataset = args.dataset
-    dataset = dataset.upper()
+    # dataset = dataset.upper()
     data_path = f"../data/{dataset}"
     model_name = STAEformer.__name__
 
@@ -261,6 +274,8 @@ if __name__ == "__main__":
         SCALER,
     ) = get_dataloaders_from_index_data(
         data_path,
+        d_input=cfg["model_args"].get("input_dim"),
+        d_output=cfg["model_args"].get("output_dim"),
         tod=cfg.get("time_of_day"),
         dow=cfg.get("day_of_week"),
         batch_size=cfg.get("batch_size", 64),
@@ -278,7 +293,9 @@ if __name__ == "__main__":
     # ---------------------- set loss, optimizer, scheduler ---------------------- #
 
     if dataset in ("METRLA", "PEMSBAY"):
-        criterion = MaskedMAELoss()
+        criterion = MaskedMAELossPEMS()
+    elif dataset in ("NYCBike1", "NYCBike2", "NYCTaxi"):
+        criterion = MaskedMAELossNYC()
     elif dataset in ("PEMS03", "PEMS04", "PEMS07", "PEMS08"):
         criterion = nn.HuberLoss()
     else:
@@ -324,6 +341,7 @@ if __name__ == "__main__":
     print_log(log=log)
 
     model = train(
+        dataset,
         model,
         trainset_loader,
         valset_loader,
@@ -340,6 +358,6 @@ if __name__ == "__main__":
 
     print_log(f"Saved Model: {save}", log=log)
 
-    test_model(model, testset_loader, log=log)
+    test_model(dataset, model, testset_loader, log=log)
 
     log.close()

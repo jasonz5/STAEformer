@@ -42,13 +42,30 @@ def masked_mae_loss(preds, labels, null_val=0.0):
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
 
-
-class MaskedMAELoss:
+class MaskedMAELossPEMS:
     def _get_name(self):
         return self.__class__.__name__
 
     def __call__(self, preds, labels, null_val=0.0):
         return masked_mae_loss(preds, labels, null_val)
+
+def mae_torch(pred, true, mask_value=None):
+    if mask_value != None:
+        mask = torch.gt(true, mask_value)
+        pred = torch.masked_select(pred, mask)
+        true = torch.masked_select(true, mask)
+    return torch.mean(torch.abs(true-pred))
+
+def masked_mae_loss(preds, labels, mask_value):
+    loss = mae_torch(pred=preds, true=labels, mask_value=mask_value)
+    return loss
+
+class MaskedMAELossNYC:
+    def _get_name(self):
+        return self.__class__.__name__
+
+    def __call__(self, preds, labels, mask_value=5.0):
+        return masked_mae_loss(preds, labels, mask_value)
 
 
 def print_log(*values, log=None, end="\n"):

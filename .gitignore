@@ -141,3 +141,5 @@ nohup.out
 .idea/
 run_nohup.sh
 logs/
+
+saved_models

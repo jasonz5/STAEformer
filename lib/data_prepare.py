@@ -7,19 +7,9 @@ from .utils import print_log, StandardScaler, vrange
 
 
 def get_dataloaders_from_index_data(
-    data_dir, tod=False, dow=False, dom=False, batch_size=64, log=None
+    data_dir, d_input, d_output, tod=False, dow=False, dom=False, batch_size=64, log=None
 ):
     data = np.load(os.path.join(data_dir, "data.npz"))["data"].astype(np.float32)
-
-    features = [0]
-    if tod:
-        features.append(1)
-    if dow:
-        features.append(2)
-    # if dom:
-    #     features.append(3)
-    data = data[..., features]
-
     index = np.load(os.path.join(data_dir, "index.npz"))
 
     train_index = index["train"]  # (num_samples, 3)
@@ -34,17 +24,17 @@ def get_dataloaders_from_index_data(
     y_test_index = vrange(test_index[:, 1], test_index[:, 2])
 
     x_train = data[x_train_index]
-    y_train = data[y_train_index][..., :1]
+    y_train = data[y_train_index][..., :d_output]
     x_val = data[x_val_index]
-    y_val = data[y_val_index][..., :1]
+    y_val = data[y_val_index][..., :d_output]
     x_test = data[x_test_index]
-    y_test = data[y_test_index][..., :1]
+    y_test = data[y_test_index][..., :d_output]
 
-    scaler = StandardScaler(mean=x_train[..., 0].mean(), std=x_train[..., 0].std())
+    scaler = StandardScaler(mean=x_train[..., :d_output].mean(), std=x_train[..., :d_output].std())
 
-    x_train[..., 0] = scaler.transform(x_train[..., 0])
-    x_val[..., 0] = scaler.transform(x_val[..., 0])
-    x_test[..., 0] = scaler.transform(x_test[..., 0])
+    x_train[..., :d_output] = scaler.transform(x_train[..., :d_output])
+    x_val[..., :d_output] = scaler.transform(x_val[..., :d_output])
+    x_test[..., :d_output] = scaler.transform(x_test[..., :d_output])
 
     print_log(f"Trainset:\tx-{x_train.shape}\ty-{y_train.shape}", log=log)
     print_log(f"Valset:  \tx-{x_val.shape}  \ty-{y_val.shape}", log=log)
