@@ -140,6 +140,6 @@ PEMSBAY.npy
 nohup.out
 .idea/
 run_nohup.sh
-logs/
+# logs/
 
 saved_models

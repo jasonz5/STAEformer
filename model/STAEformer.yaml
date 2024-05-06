@@ -13,7 +13,7 @@ NYCBike1:
   weight_decay: 0.0003
   milestones: [20,30]
   lr_decay_rate: 0.1
-  batch_size: 16
+  batch_size: 32
   max_epochs: 200
   early_stop: 30
   use_cl: False
@@ -53,7 +53,7 @@ NYCBike2:
   weight_decay: 0.0003
   milestones: [20,30]
   lr_decay_rate: 0.1
-  batch_size: 16
+  batch_size: 32
   max_epochs: 200
   early_stop: 30
   use_cl: False
@@ -93,7 +93,7 @@ NYCTaxi:
   weight_decay: 0.0003
   milestones: [20,30]
   lr_decay_rate: 0.1
-  batch_size: 16
+  batch_size: 32
   max_epochs: 200
   early_stop: 30
   use_cl: False
