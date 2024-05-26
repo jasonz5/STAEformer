@@ -1,3 +1,7 @@
+# Jason
+saved_models
+# logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -140,6 +144,3 @@ PEMSBAY.npy
 nohup.out
 .idea/
 run_nohup.sh
-# logs/
-
-saved_models
